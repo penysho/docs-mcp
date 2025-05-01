@@ -76,3 +76,19 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/windows,macos,linux
+
+# .envファイル
+.env
+
+# Google API認証情報
+credentials.json
+token.json
+
+# TypeScriptコンパイル出力
+dist/
+
+# node_modules
+node_modules/
+
+# ログファイル
+*.log

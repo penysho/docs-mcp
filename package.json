@@ -1,0 +1,39 @@
+{
+  "name": "google-docs-mcp",
+  "version": "1.0.0",
+  "description": "Google Docs APIと連携するMCP（Model Context Protocol）サーバー",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "lint": "eslint src/**/*.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "google-docs",
+    "generative-ai",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@google-cloud/local-auth": "^3.0.1",
+    "@modelcontextprotocol/sdk": "^0.0.1",
+    "@types/node": "^22.15.3",
+    "dotenv": "^16.5.0",
+    "googleapis": "^148.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/google-docs-mcp.git"
+  }
+}
