@@ -1,4 +1,7 @@
-import { getDocsClient, getDriveClient } from './auth';
+import { docs_v1, drive_v3, google } from 'googleapis';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as readline from 'readline';
 import {
   GoogleDocResult,
   DocSearchResult,
@@ -8,269 +11,289 @@ import {
   UpdateGoogleDocsArgs,
   SearchGoogleDocsArgs
 } from './types/index';
-import { docs_v1 } from 'googleapis';
+
+// トークン情報を保存するパス
+const TOKEN_PATH = 'token.json';
+// 認証情報を保存するパス
+const CREDENTIALS_PATH = 'credentials.json';
 
 /**
- * GoogleDocsServiceクラス
- * Google Docsの操作を行うメソッドを提供します
+ * Google Docsサービスクラス
+ * Google DocsのAPIを使用してドキュメントの操作を行うクラス
  */
 export class GoogleDocsService {
+  private docsClient: docs_v1.Docs;
+  private driveClient: drive_v3.Drive;
+  private authorized: boolean = false;
+
+  constructor() {
+    this.docsClient = google.docs({ version: 'v1' });
+    this.driveClient = google.drive({ version: 'v3' });
+    this.authorize();
+  }
+
   /**
-   * Googleドキュメントのコンテンツをテキストに変換します
+   * 認証を行う
    */
-  private static extractTextFromDocument(document: docs_v1.Schema$Document): string {
-    if (!document.body || !document.body.content) {
-      return '';
+  private async authorize(): Promise<void> {
+    try {
+      // 認証情報ファイルの存在確認
+      if (!fs.existsSync(CREDENTIALS_PATH)) {
+        throw new Error('credentials.jsonファイルが見つかりません。Google Cloud Consoleから認証情報をダウンロードしてください。');
+      }
+
+      // 認証情報を読み込む
+      const content = fs.readFileSync(CREDENTIALS_PATH, 'utf8');
+      const credentials = JSON.parse(content);
+      
+      const { client_secret, client_id, redirect_uris } = credentials.installed || credentials.web;
+      const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
+
+      // トークンの存在確認
+      if (fs.existsSync(TOKEN_PATH)) {
+        // 既存のトークンを読み込む
+        const token = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8'));
+        oAuth2Client.setCredentials(token);
+        
+        // クライアントに認証情報をセット
+        google.options({ auth: oAuth2Client });
+        this.authorized = true;
+      } else {
+        // 新しいトークンを取得
+        await this.getNewToken(oAuth2Client);
+      }
+    } catch (error) {
+      console.error('認証エラー:', error);
+      throw new Error('Google APIの認証に失敗しました。');
+    }
+  }
+
+  /**
+   * 新しいトークンを取得する
+   * @param oAuth2Client OAuth2クライアント
+   */
+  private async getNewToken(oAuth2Client: any): Promise<void> {
+    const authUrl = oAuth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: [
+        'https://www.googleapis.com/auth/documents',
+        'https://www.googleapis.com/auth/drive'
+      ],
+    });
+
+    console.log('以下のURLにアクセスして認証を行ってください:');
+    console.log(authUrl);
+
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+
+    const code = await new Promise<string>((resolve) => {
+      rl.question('認証コードを入力してください: ', (code) => {
+        resolve(code);
+      });
+    });
+    
+    rl.close();
+
+    try {
+      const { tokens } = await oAuth2Client.getToken(code);
+      oAuth2Client.setCredentials(tokens);
+      
+      // トークンを保存
+      fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens));
+      console.log('トークンが保存されました:', TOKEN_PATH);
+      
+      // クライアントに認証情報をセット
+      google.options({ auth: oAuth2Client });
+      this.authorized = true;
+    } catch (error) {
+      console.error('トークンの取得に失敗しました:', error);
+      throw new Error('認証コードが無効です。');
+    }
+  }
+
+  /**
+   * ドキュメントを読み取る
+   * @param documentId ドキュメントID
+   * @returns ドキュメントの内容
+   */
+  async readDocumentContent(documentId: string): Promise<string> {
+    if (!this.authorized) {
+      await this.authorize();
     }
     
-    let text = '';
-    document.body.content.forEach(element => {
-      if (element.paragraph) {
-        element.paragraph.elements?.forEach(paraElement => {
-          if (paraElement.textRun && paraElement.textRun.content) {
-            text += paraElement.textRun.content;
+    try {
+      // ドキュメントを取得
+      const response = await this.docsClient.documents.get({
+        documentId: this.normalizeDocumentId(documentId),
+      });
+
+      // ドキュメントの内容を抽出
+      const document = response.data;
+      let content = '';
+
+      if (document.body && document.body.content) {
+        document.body.content.forEach(element => {
+          if (element.paragraph) {
+            element.paragraph.elements?.forEach(paragraphElement => {
+              if (paragraphElement.textRun) {
+                content += paragraphElement.textRun.content || '';
+              }
+            });
           }
         });
       }
-    });
-    
-    return text;
-  }
 
-  /**
-   * ドキュメントIDを正規化します（URL形式から抽出など）
-   */
-  public static normalizeDocumentId(documentId: string): string {
-    const documentIdMatch = documentId.match(/[-\w]{25,}/);
-    return documentIdMatch ? documentIdMatch[0] : documentId;
-  }
-
-  /**
-   * Google Docsドキュメントを読み込みます
-   */
-  public static async readDocument(args: AccessGoogleDocsArgs): Promise<GoogleDocResult> {
-    const { documentId, maxLength, startPosition } = args;
-    
-    try {
-      const docsClient = await getDocsClient();
-      const { data: document } = await docsClient.documents.get({
-        documentId,
-      });
-      
-      if (!document || !document.title) {
-        throw new Error(`ドキュメントが見つかりませんでした: ${documentId}`);
-      }
-      
-      let content = this.extractTextFromDocument(document);
-      
-      // startPositionとmaxLengthが指定されている場合、その範囲のテキストを抽出
-      if (startPosition !== undefined && maxLength !== undefined) {
-        content = content.substring(startPosition, startPosition + maxLength);
-      } else if (maxLength !== undefined) {
-        content = content.substring(0, maxLength);
-      }
-      
-      return {
-        documentId,
-        title: document.title,
-        content,
-        url: `https://docs.google.com/document/d/${documentId}/edit`,
-        lastModified: document.revisionId || undefined
-      };
+      return content;
     } catch (error) {
-      console.error('Google Docsの読み込み中にエラーが発生しました:', error);
-      throw error;
+      console.error('ドキュメント読み取りエラー:', error);
+      throw new Error(`ドキュメントの読み取りに失敗しました: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   /**
-   * 新しいGoogle Docsドキュメントを作成します
+   * 新しいドキュメントを作成する
+   * @param title ドキュメントのタイトル
+   * @param content ドキュメントの初期内容
+   * @returns 作成されたドキュメントのID
    */
-  public static async createDocument(args: CreateGoogleDocsArgs): Promise<GoogleDocResult> {
-    const { title, content } = args;
+  async createNewDocument(title: string, content: string): Promise<string> {
+    if (!this.authorized) {
+      await this.authorize();
+    }
     
     try {
-      const docsClient = await getDocsClient();
-      
       // 空のドキュメントを作成
-      const { data: document } = await docsClient.documents.create({
+      const createResponse = await this.docsClient.documents.create({
         requestBody: {
-          title,
+          title: title,
         },
       });
-      
-      if (!document.documentId) {
-        throw new Error('ドキュメントの作成に失敗しました');
+
+      const documentId = createResponse.data.documentId;
+
+      if (!documentId) {
+        throw new Error('ドキュメントIDが取得できませんでした。');
       }
-      
-      // コンテンツが指定されている場合は、ドキュメントに挿入
+
+      // 内容を追加
       if (content) {
-        await docsClient.documents.batchUpdate({
-          documentId: document.documentId,
-          requestBody: {
-            requests: [
-              {
-                insertText: {
-                  location: {
-                    index: 1,
-                  },
-                  text: content,
-                },
-              },
-            ],
-          },
-        });
+        await this.updateDocumentContent(documentId, content);
       }
-      
-      return {
-        documentId: document.documentId,
-        title: document.title || title,
-        content: content || '',
-        url: `https://docs.google.com/document/d/${document.documentId}/edit`,
-      };
+
+      return documentId;
     } catch (error) {
-      console.error('Google Docsの作成中にエラーが発生しました:', error);
-      throw error;
+      console.error('ドキュメント作成エラー:', error);
+      throw new Error(`ドキュメントの作成に失敗しました: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   /**
-   * 既存のGoogle Docsドキュメントを更新します
+   * ドキュメントを更新する
+   * @param documentId ドキュメントID
+   * @param content 追加または更新するコンテンツ
+   * @param startPosition 更新を開始する位置
+   * @param endPosition 更新を終了する位置
    */
-  public static async updateDocument(args: UpdateGoogleDocsArgs): Promise<GoogleDocResult> {
-    const { documentId, content, startPosition = 1, endPosition } = args;
+  async updateDocumentContent(documentId: string, content: string, startPosition?: number, endPosition?: number): Promise<void> {
+    if (!this.authorized) {
+      await this.authorize();
+    }
     
     try {
-      const docsClient = await getDocsClient();
+      const normalizedId = this.normalizeDocumentId(documentId);
       
-      // ドキュメントを取得して存在確認
-      const { data: document } = await docsClient.documents.get({
-        documentId,
-      });
+      const requests: any[] = [];
       
-      if (!document || !document.title) {
-        throw new Error(`ドキュメントが見つかりませんでした: ${documentId}`);
-      }
-      
-      // ドキュメントを更新
-      const updateRequests = [];
-      
-      // 更新範囲が指定されている場合は、その範囲のテキストを置換
-      if (endPosition) {
-        updateRequests.push({
-          deleteContentRange: {
-            range: {
-              startIndex: startPosition,
-              endIndex: endPosition,
-            },
-          },
-        });
-        
-        updateRequests.push({
-          insertText: {
-            location: {
-              index: startPosition,
-            },
+      // 範囲指定がある場合は置き換え
+      if (startPosition !== undefined && endPosition !== undefined) {
+        requests.push({
+          replaceText: {
             text: content,
+            startIndex: startPosition,
+            endIndex: endPosition,
           },
         });
       } else {
-        // 範囲指定がない場合は、指定位置にテキストを挿入
-        updateRequests.push({
+        // 範囲指定がない場合は末尾に追加
+        requests.push({
           insertText: {
-            location: {
-              index: startPosition,
-            },
             text: content,
+            endOfSegmentLocation: {
+              segmentId: '',
+            },
           },
         });
       }
       
-      await docsClient.documents.batchUpdate({
-        documentId,
+      await this.docsClient.documents.batchUpdate({
+        documentId: normalizedId,
         requestBody: {
-          requests: updateRequests,
+          requests: requests,
         },
       });
-      
-      // 更新後のドキュメントを取得
-      const { data: updatedDocument } = await docsClient.documents.get({
-        documentId,
-      });
-      
-      return {
-        documentId,
-        title: updatedDocument.title || document.title,
-        content: this.extractTextFromDocument(updatedDocument),
-        url: `https://docs.google.com/document/d/${documentId}/edit`,
-        lastModified: updatedDocument.revisionId || undefined,
-      };
     } catch (error) {
-      console.error('Google Docsの更新中にエラーが発生しました:', error);
-      throw error;
+      console.error('ドキュメント更新エラー:', error);
+      throw new Error(`ドキュメントの更新に失敗しました: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   /**
-   * Google Docsドキュメントを検索します
+   * ドキュメントを検索する
+   * @param query 検索クエリ
+   * @param maxResults 取得する最大結果数
+   * @returns 検索結果
    */
-  public static async searchDocuments(args: SearchGoogleDocsArgs): Promise<SearchResult> {
-    const { query, maxResults = 10 } = args;
+  async searchForDocuments(query: string, maxResults: number = 10): Promise<any[]> {
+    if (!this.authorized) {
+      await this.authorize();
+    }
     
     try {
-      const driveClient = await getDriveClient();
-      
-      // Google Driveでドキュメントを検索
-      const response = await driveClient.files.list({
-        q: `mimeType='application/vnd.google-apps.document' and fullText contains '${query}' and trashed=false`,
+      const response = await this.driveClient.files.list({
+        q: `mimeType='application/vnd.google-apps.document' and fullText contains '${query}'`,
+        fields: 'files(id, name, createdTime, modifiedTime, webViewLink)',
         pageSize: maxResults,
-        fields: 'nextPageToken, files(id, name, modifiedTime)',
       });
-      
+
       const files = response.data.files || [];
-      const nextPageToken = response.data.nextPageToken || undefined;
-      
-      // 検索結果からドキュメント情報を取得
-      const documentsPromises = files
-        .filter(file => !!file.id)
-        .map(async (file) => {
+      const results = [];
+
+      // 検索結果の各ドキュメントについて詳細情報を取得
+      for (const file of files) {
+        if (file.id) {
           try {
-            const doc = await this.readDocument({ documentId: file.id! });
-            const searchResult: DocSearchResult = {
-              ...doc,
-              lastModified: file.modifiedTime || undefined
-            };
-            return searchResult;
+            const content = await this.readDocumentContent(file.id);
+            results.push({
+              documentId: file.id,
+              title: file.name,
+              content: content.substring(0, 200) + (content.length > 200 ? '...' : ''),
+              url: file.webViewLink,
+              lastModified: file.modifiedTime,
+            });
           } catch (error) {
-            console.error(`ドキュメント ${file.id} の取得中にエラーが発生しました:`, error);
-            return null;
+            console.warn(`ドキュメント ${file.id} の詳細取得に失敗しました:`, error);
           }
-        });
-      
-      const documentsWithNulls = await Promise.all(documentsPromises);
-      const documents = documentsWithNulls
-        .filter((doc): doc is DocSearchResult => doc !== null)
-        .map(doc => ({
-          documentId: doc.documentId,
-          title: doc.title,
-          content: doc.content,
-          url: doc.url,
-          lastModified: doc.lastModified
-        }));
-      
-      return {
-        documents,
-        nextPageToken,
-      };
+        }
+      }
+
+      return results;
     } catch (error) {
-      console.error('Google Docsの検索中にエラーが発生しました:', error);
-      throw error;
+      console.error('ドキュメント検索エラー:', error);
+      throw new Error(`ドキュメントの検索に失敗しました: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
-}
 
-// 既存の関数をGoogleDocsServiceのメソッドにマッピング
-export const readGoogleDoc = GoogleDocsService.readDocument.bind(GoogleDocsService);
-export const createGoogleDoc = GoogleDocsService.createDocument.bind(GoogleDocsService);
-export const updateGoogleDoc = GoogleDocsService.updateDocument.bind(GoogleDocsService);
-export const searchGoogleDocs = GoogleDocsService.searchDocuments.bind(GoogleDocsService); 
+  /**
+   * ドキュメントIDを正規化する
+   * URLからIDを抽出する場合があるため
+   * @param documentId ドキュメントID
+   * @returns 正規化されたドキュメントID
+   */
+  private normalizeDocumentId(documentId: string): string {
+    const documentIdMatch = documentId.match(/[-\w]{25,}/);
+    return documentIdMatch ? documentIdMatch[0] : documentId;
+  }
+} 
