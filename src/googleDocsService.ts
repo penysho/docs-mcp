@@ -146,7 +146,7 @@ export class GoogleDocsService {
 
       return content;
     } catch (error) {
-      console.error('ドキュメント読み取りエラー:', error);
+      process.stderr.write(`ドキュメント読み取りエラー: ${error}\n`);
       throw new Error(`ドキュメントの読み取りに失敗しました: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -183,7 +183,7 @@ export class GoogleDocsService {
 
       return documentId;
     } catch (error) {
-      console.error('ドキュメント作成エラー:', error);
+      process.stderr.write(`ドキュメント作成エラー: ${error}\n`);
       throw new Error(`ドキュメントの作成に失敗しました: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -242,7 +242,7 @@ export class GoogleDocsService {
         },
       });
     } catch (error) {
-      console.error('ドキュメント更新エラー:', error);
+      process.stderr.write(`ドキュメント更新エラー: ${error}\n`);
       throw new Error(`ドキュメントの更新に失敗しました: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -281,14 +281,14 @@ export class GoogleDocsService {
               lastModified: file.modifiedTime,
             });
           } catch (error) {
-            console.warn(`ドキュメント ${file.id} の詳細取得に失敗しました:`, error);
+            process.stderr.write(`ドキュメント ${file.id} の詳細取得に失敗しました: ${error}\n`);
           }
         }
       }
 
       return results;
     } catch (error) {
-      console.error('ドキュメント検索エラー:', error);
+      process.stderr.write(`ドキュメント検索エラー: ${error}\n`);
       throw new Error(`ドキュメントの検索に失敗しました: ${error instanceof Error ? error.message : String(error)}`);
     }
   }

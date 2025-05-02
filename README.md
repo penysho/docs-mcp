@@ -50,10 +50,35 @@ npm install
 
 1. `.env`ファイルをプロジェクトルートに作成し、環境変数を設定します：
 
-```
+```ini
+# アプリケーション環境
+NODE_ENV=development
+
+# ログ設定
+# ログレベル: ERROR, WARN, INFO, DEBUG, TRACE
+LOG_LEVEL=INFO
+# 標準エラー出力にログを出力するかどうか（MCPの仕様に準拠）
+LOG_USE_STDERR=true
+
+# サーバー設定
+SERVER_NAME=google-docs-mcp-server
+SERVER_VERSION=1.0.0
+
 # Google API認証情報
-GOOGLE_APPLICATION_CREDENTIALS="./credentials.json"
+# 認証情報ファイルのパス（デフォルトは./credentials.json）
+CREDENTIALS_PATH=./credentials.json
+# トークンファイルのパス（デフォルトは./token.json）
+TOKEN_PATH=./token.json
 ```
+
+環境変数の説明:
+- `NODE_ENV`: アプリケーションの実行環境（development, production, test）
+- `LOG_LEVEL`: ログの詳細レベル（ERROR, WARN, INFO, DEBUG, TRACE）
+- `LOG_USE_STDERR`: ログを標準エラー出力に出力するかどうか（MCP仕様では標準エラー出力を使用）
+- `SERVER_NAME`: MCPサーバー名
+- `SERVER_VERSION`: MCPサーバーのバージョン
+- `CREDENTIALS_PATH`: Google APIの認証情報ファイルのパス
+- `TOKEN_PATH`: 認証トークン保存先のパス
 
 2. 開発サーバーを起動し、トークンを取得します:
    ```bash
