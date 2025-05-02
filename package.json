@@ -2,12 +2,14 @@
   "name": "google-docs-mcp",
   "version": "1.0.0",
   "description": "Google Docs APIと連携するMCP（Model Context Protocol）サーバー",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && chmod 755 dist/index.js && cp credentials.json dist/ && cp token.json dist/",
     "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts",
+    "dev": "node --loader ts-node/esm src/index.ts",
+    "mcp": "cross-env DEBUG=mcp:* node --loader ts-node/esm src/index.ts",
     "lint": "eslint src/**/*.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -24,6 +26,7 @@
     "@google-cloud/local-auth": "^3.0.1",
     "@modelcontextprotocol/sdk": "^1.10.2",
     "@types/node": "^22.15.3",
+    "cross-env": "^7.0.3",
     "dotenv": "^16.5.0",
     "googleapis": "^148.0.0",
     "ts-node": "^10.9.2",
@@ -32,9 +35,5 @@
   },
   "engines": {
     "node": ">=14.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/your-username/google-docs-mcp.git"
   }
 }

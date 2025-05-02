@@ -1,6 +1,3 @@
-import { Context } from '@modelcontextprotocol/sdk';
-import { docs_v1 } from 'googleapis';
-
 // MCPツールの引数の型
 export interface AccessGoogleDocsArgs {
   documentId: string;

@@ -2,20 +2,15 @@ import { docs_v1, drive_v3, google } from 'googleapis';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
-import {
-  GoogleDocResult,
-  DocSearchResult,
-  SearchResult,
-  AccessGoogleDocsArgs,
-  CreateGoogleDocsArgs,
-  UpdateGoogleDocsArgs,
-  SearchGoogleDocsArgs
-} from './types/index';
+import { fileURLToPath } from 'url';
 
-// トークン情報を保存するパス
-const TOKEN_PATH = 'token.json';
-// 認証情報を保存するパス
-const CREDENTIALS_PATH = 'credentials.json';
+// ESモジュール環境での__dirnameの代替
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// トークン情報と認証情報のパスを絶対パスで指定
+const TOKEN_PATH = path.resolve(__dirname, '../token.json');
+const CREDENTIALS_PATH = path.resolve(__dirname, '../credentials.json');
 
 /**
  * Google Docsサービスクラス
@@ -63,7 +58,7 @@ export class GoogleDocsService {
         await this.getNewToken(oAuth2Client);
       }
     } catch (error) {
-      console.error('認証エラー:', error);
+      process.stderr.write(`認証エラー: ${error}\n`);
       throw new Error('Google APIの認証に失敗しました。');
     }
   }
@@ -81,12 +76,12 @@ export class GoogleDocsService {
       ],
     });
 
-    console.log('以下のURLにアクセスして認証を行ってください:');
-    console.log(authUrl);
+    process.stderr.write('以下のURLにアクセスして認証を行ってください:\n');
+    process.stderr.write(`${authUrl}\n`);
 
     const rl = readline.createInterface({
       input: process.stdin,
-      output: process.stdout,
+      output: process.stderr,
     });
 
     const code = await new Promise<string>((resolve) => {
@@ -103,13 +98,13 @@ export class GoogleDocsService {
       
       // トークンを保存
       fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens));
-      console.log('トークンが保存されました:', TOKEN_PATH);
+      process.stderr.write(`トークンが保存されました: ${TOKEN_PATH}\n`);
       
       // クライアントに認証情報をセット
       google.options({ auth: oAuth2Client });
       this.authorized = true;
     } catch (error) {
-      console.error('トークンの取得に失敗しました:', error);
+      process.stderr.write(`トークンの取得に失敗しました: ${error}\n`);
       throw new Error('認証コードが無効です。');
     }
   }
@@ -210,11 +205,20 @@ export class GoogleDocsService {
       // 範囲指定がある場合は置き換え
       if (startPosition !== undefined && endPosition !== undefined) {
         requests.push({
-          replaceText: {
+          deleteContentRange: {
+            range: {
+              startIndex: startPosition,
+              endIndex: endPosition,
+            }
+          }
+        });
+        requests.push({
+          insertText: {
             text: content,
-            startIndex: startPosition,
-            endIndex: endPosition,
-          },
+            location: {
+              index: startPosition
+            }
+          }
         });
       } else {
         // 範囲指定がない場合は末尾に追加

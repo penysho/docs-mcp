@@ -8,10 +8,7 @@ import { OAuth2Client } from 'google-auth-library';
 // スコープの定義
 const SCOPES = [
   'https://www.googleapis.com/auth/documents',
-  'https://www.googleapis.com/auth/documents.readonly',
   'https://www.googleapis.com/auth/drive',
-  'https://www.googleapis.com/auth/drive.file',
-  'https://www.googleapis.com/auth/drive.readonly',
 ];
 
 // トークンパスの定義
