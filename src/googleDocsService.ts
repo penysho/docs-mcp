@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
 import { fileURLToPath } from 'url';
+import { OAuth2Client } from 'google-auth-library';
 
 // ESモジュール環境での__dirnameの代替
 const __filename = fileURLToPath(import.meta.url);
@@ -67,13 +68,15 @@ export class GoogleDocsService {
    * 新しいトークンを取得する
    * @param oAuth2Client OAuth2クライアント
    */
-  private async getNewToken(oAuth2Client: any): Promise<void> {
+  private async getNewToken(oAuth2Client: OAuth2Client): Promise<void> {
     const authUrl = oAuth2Client.generateAuthUrl({
       access_type: 'offline',
       scope: [
         'https://www.googleapis.com/auth/documents',
         'https://www.googleapis.com/auth/drive'
       ],
+      prompt: 'consent',
+      include_granted_scopes: true,
     });
 
     process.stderr.write('以下のURLにアクセスして認証を行ってください:\n');
