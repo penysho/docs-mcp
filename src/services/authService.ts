@@ -2,8 +2,8 @@ import * as fs from 'fs';
 import * as readline from 'readline';
 import { google } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
-import { IAuthService } from './types.js';
-import config from '../config/appConfig.js';
+import { IAuthService } from '../core/interfaces.js';
+import { getConfig } from '../config/index.js';
 import { createLogger } from '../utils/logger.js';
 import { AuthError } from '../utils/errors.js';
 
@@ -21,6 +21,8 @@ export class AuthService implements IAuthService {
    */
   async authorize(): Promise<void> {
     try {
+      const config = getConfig();
+      
       // クレデンシャルの取得
       if (!fs.existsSync(config.googleApi.credentialsPath)) {
         throw new AuthError('credentials.jsonファイルが見つかりません。Google Cloud Consoleから認証情報をダウンロードしてください。');
@@ -78,6 +80,7 @@ export class AuthService implements IAuthService {
       throw new AuthError('OAuth2クライアントが初期化されていません。');
     }
     
+    const config = getConfig();
     const authUrl = this.oAuth2Client.generateAuthUrl({
       access_type: 'offline',
       scope: config.googleApi.scopes,
@@ -106,6 +109,7 @@ export class AuthService implements IAuthService {
       this.oAuth2Client.setCredentials(tokens);
       
       // トークンを保存
+      const config = getConfig();
       fs.writeFileSync(config.googleApi.tokenPath, JSON.stringify(tokens));
       this.logger.info(`トークンが保存されました: ${config.googleApi.tokenPath}`);
       

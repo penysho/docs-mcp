@@ -26,38 +26,63 @@ The build command performs several steps:
 ### Core Components
 
 **Entry Point (`src/index.ts`)**
-- Main MCP server initialization
-- Registers 4 MCP tools: `read_google_document`, `create_google_document`, `update_google_document`, `search_google_documents`
-- Handles service initialization with lazy loading (services initialize on first tool use if not already initialized)
-- Uses stdio transport for MCP communication
+- Simplified main function with dependency injection
+- Creates ServiceContainer and GoogleDocsMcpServer instances
+- Handles application lifecycle and error management
+- Clean separation of concerns with only ~55 lines
+
+**Core Infrastructure**
+- `ServiceContainer` (`src/core/container.ts`) - Dependency injection container managing service lifecycles
+- `interfaces.ts` (`src/core/interfaces.ts`) - Type definitions and contracts for all major components
+
+**MCP Server Layer**
+- `GoogleDocsMcpServer` (`src/mcp/server.ts`) - MCP server management and lifecycle
+- `ToolRegistry` (`src/mcp/registry.ts`) - Automatic tool registration and management
+- `BaseMcpTool` (`src/mcp/tools/base.ts`) - Abstract base class for all tools with common logic
+
+**MCP Tools (`src/mcp/tools/`)**
+- `ReadDocumentTool` - Handles Google Docs document reading
+- `CreateDocumentTool` - Handles new document creation
+- `UpdateDocumentTool` - Handles document content updates
+- `SearchDocumentsTool` - Handles document search functionality
+- Each tool extends `BaseMcpTool` for consistent behavior
 
 **Services Layer**
-- `AuthService` (`src/services/authService.ts`) - Manages Google OAuth2 authentication using Google Auth Library
-- `GoogleDocsService` (`src/services/googleDocsService.ts`) - Handles all Google Docs and Drive API operations
-- Interface definitions in `src/services/types.ts`
+- `AuthService` (`src/services/authService.ts`) - Google OAuth2 authentication
+- `GoogleDocsService` (`src/services/googleDocsService.ts`) - Google Docs and Drive API operations
+- Interface definitions in `src/services/types.ts` and `src/core/interfaces.ts`
 
-**Configuration (`src/config/appConfig.ts`)**
-- Centralized configuration using environment variables and defaults
-- Supports `.env` file loading via dotenv
-- Validates Google API credentials file existence
+**Configuration (`src/config/index.ts`)**
+- Unified configuration management system with validation
+- Environment variable handling with type safety
+- Supports `.env` file loading and provides safe config display
 
 **Utilities**
-- `src/utils/logger.ts` - Custom logging system with configurable levels and stderr output (required for MCP)
-- `src/utils/errors.ts` - Custom error hierarchy with specific error types for different failure scenarios
+- `src/utils/logger.ts` - Custom logging system with configurable levels and stderr output
+- `src/utils/errors.ts` - Hierarchical error system with specific error types
+
+### Key Architectural Improvements
+
+**Dependency Injection**
+- ServiceContainer manages all service instances with singleton pattern
+- Services are lazy-loaded and cached for performance
+- Easy mocking for testing
+
+**Tool Architecture**
+- BaseToolクラスで共通ロジック (初期化・エラーハンドリング) を集約
+- 各ツールは責任が明確で独立してテスト可能
+- 新ツール追加は設定ベースで自動登録
+
+**Error Handling**
+- 統一されたエラーハンドリング戦略
+- 適切なHTTPステータスコードとエラータイプ
+- ログ出力の標準化
 
 ### Authentication Flow
-1. Checks for existing `token.json` (OAuth refresh token)
-2. If not found, prompts user with Google OAuth URL
-3. User manually enters authorization code
-4. Token is saved for future use
-5. All subsequent API calls use the stored token
-
-### MCP Tools Architecture
-Each tool follows this pattern:
-1. Check if services are initialized, initialize if needed
-2. Call appropriate service method
-3. Handle errors with specific error types
-4. Return MCP-compliant response format
+1. ServiceContainer が初期化時に AuthService を作成
+2. AuthService が既存の `token.json` をチェック
+3. トークンが無い場合、OAuth フローを開始
+4. 認証完了後、全てのAPI呼び出しで再利用
 
 ## Key Files and Configuration
 
@@ -96,10 +121,26 @@ The server can be configured in MCP clients like Cursor using:
 5. Follow the OAuth flow in the terminal
 
 ### Making Changes
-1. Edit TypeScript source files in `src/`
-2. Use `npm run dev` for development with hot reloading
-3. Run `npm run build` before production deployment
-4. Test with MCP clients after building
+
+**Adding New Tools:**
+1. Create new tool class in `src/mcp/tools/` extending `BaseMcpTool`
+2. Add to `ToolRegistry.registerDefaultTools()` method
+3. Tool will be automatically registered and available
+
+**Modifying Services:**
+1. Update service interfaces in `src/core/interfaces.ts`
+2. Implement changes in respective service classes
+3. ServiceContainer will handle dependency injection automatically
+
+**Configuration Changes:**
+1. Update `src/config/index.ts` for new settings
+2. Add environment variables to `.env` or system environment
+3. Configuration validation runs automatically on startup
+
+### Development Commands
+1. `npm run dev` - Development with hot reloading
+2. `npm run build` - Production build and validation
+3. `npm start` - Run the built production version
 
 ### Error Handling
 The codebase uses a hierarchical error system:

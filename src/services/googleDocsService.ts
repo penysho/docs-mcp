@@ -1,5 +1,6 @@
 import { docs_v1, drive_v3, google } from 'googleapis';
-import { IGoogleDocsService, DocumentSearchResult } from './types.js';
+import { IGoogleDocsService } from '../core/interfaces.js';
+import { DocumentSearchResult } from './types.js';
 import { AuthService } from './authService.js';
 import { createLogger } from '../utils/logger.js';
 import { DocumentError, NotFoundError, ApiError } from '../utils/errors.js';
