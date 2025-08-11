@@ -6,7 +6,6 @@ import { formatError } from './utils/errors.js';
 
 /**
  * アプリケーションのメインエントリーポイント
- * リファクタリング後の簡素化されたバージョン
  */
 async function main(): Promise<void> {
   let logger;

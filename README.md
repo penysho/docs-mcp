@@ -1,249 +1,187 @@
-# Google Docs MCP サーバー
+# Google Docs MCP Server
 
-このプロジェクトは、Google Docs APIと連携するMCP（Model Context Protocol）サーバーを提供します。生成AIを使ってGoogle Docsを操作するためのインターフェースを実装しています。
+Google Docs APIと連携するMCP（Model Context Protocol）サーバーです。AI システムがGoogle Docsを直接操作できるインターフェースを提供します。
 
 ## 機能
 
-このMCPサーバーは以下の機能を提供します：
+このMCPサーバーが提供するツール：
 
-- Google Docsドキュメントの読み取り
-- 新しいGoogle Docsドキュメントの作成
-- 既存のGoogle Docsドキュメントの更新
-- Google Docsドキュメントの検索
+- **read_google_document** - Google Docsドキュメントの読み取り
+- **create_google_document** - 新しいGoogle Docsドキュメントの作成
+- **update_google_document** - 既存のGoogle Docsドキュメントの更新
+- **search_google_documents** - Google Docsドキュメントの検索
+
+## アーキテクチャの特徴
+
+- **依存性注入コンテナ** - ServiceContainerによるサービス管理
+- **階層化エラーハンドリング** - 統一されたエラー処理システム
+- **自動ツール登録** - 設定ベースのツール管理
+- **完全なTypeScript** - 型安全性と開発効率の向上
 
 ## 技術スタック
 
-- [Node.js](https://nodejs.org/) （v14以上推奨）
-- [TypeScript](https://www.typescriptlang.org/)
-- [@modelcontextprotocol/sdk](https://github.com/modelcontextprotocol/typescript-sdk) - MCP SDKの公式実装
-- [Google APIs Node.js Client](https://github.com/googleapis/google-api-nodejs-client) - Google APIへのアクセス
-
-## 前提条件
-
-- Node.js （v14以上推奨）
-- npm または yarn
-- Google Cloud Platformのプロジェクトとアクセス認証情報
+- **Runtime**: [Node.js](https://nodejs.org/) (v14以上)
+- **Language**: [TypeScript](https://www.typescriptlang.org/) (ES2020/ESM)
+- **MCP SDK**: [@modelcontextprotocol/sdk](https://github.com/modelcontextprotocol/typescript-sdk) v1.10.2
+- **Google APIs**: [googleapis](https://github.com/googleapis/google-api-nodejs-client) v148.0.0
+- **Configuration**: [dotenv](https://github.com/motdotla/dotenv) + [zod](https://github.com/colinhacks/zod) validation
 
 ## セットアップ
 
-### 1. プロジェクトをクローンまたはダウンロード
+### 1. プロジェクトの準備
 
 ```bash
-git clone [リポジトリURL]
+git clone <repository-url>
 cd docs-mcp
-```
-
-### 2. 依存関係のインストール
-
-```bash
 npm install
 ```
 
-### 3. Google Cloud Platformの設定
+### 2. Google Cloud Platform の設定
 
-1. [Google Cloud Console](https://console.cloud.google.com/)でプロジェクトを作成（または既存のプロジェクトを選択）
-2. Google Drive APIとGoogle Docs APIを有効化
-3. OAuth 2.0クライアントIDを作成し、認証情報をダウンロード
-4. ダウンロードした認証情報ファイルを`credentials.json`としてプロジェクトルートに配置
+1. [Google Cloud Console](https://console.cloud.google.com/) でプロジェクトを作成
+2. 以下のAPIを有効化：
+   - Google Docs API
+   - Google Drive API
+3. OAuth 2.0 クライアントIDを作成し、認証情報をダウンロード
+4. `credentials.json` としてプロジェクトルートに配置
 
-### 4. 環境設定
+### 3. 環境設定（オプション）
 
-1. `.env`ファイルをプロジェクトルートに作成し、環境変数を設定します：
+`.env` ファイルで設定をカスタマイズできます：
 
-```ini
-# アプリケーション環境
+```env
+# アプリケーション環境 (development, production, test)
 NODE_ENV=development
 
-# ログ設定
-# ログレベル: ERROR, WARN, INFO, DEBUG, TRACE
+# ログ設定 (ERROR, WARN, INFO, DEBUG, TRACE)
 LOG_LEVEL=INFO
-# 標準エラー出力にログを出力するかどうか（MCPの仕様に準拠）
 LOG_USE_STDERR=true
 
-# サーバー設定
+# サーバー情報
 SERVER_NAME=google-docs-mcp-server
 SERVER_VERSION=1.0.0
 
-# Google API認証情報
-# 認証情報ファイルのパス（デフォルトは./credentials.json）
+# 認証ファイルパス（カスタマイズ可能）
 CREDENTIALS_PATH=./credentials.json
-# トークンファイルのパス（デフォルトは./token.json）
 TOKEN_PATH=./token.json
 ```
 
-環境変数の説明:
-- `NODE_ENV`: アプリケーションの実行環境（development, production, test）
-- `LOG_LEVEL`: ログの詳細レベル（ERROR, WARN, INFO, DEBUG, TRACE）
-- `LOG_USE_STDERR`: ログを標準エラー出力に出力するかどうか（MCP仕様では標準エラー出力を使用）
-- `SERVER_NAME`: MCPサーバー名
-- `SERVER_VERSION`: MCPサーバーのバージョン
-- `CREDENTIALS_PATH`: Google APIの認証情報ファイルのパス
-- `TOKEN_PATH`: 認証トークン保存先のパス
-
-2. 開発サーバーを起動し、トークンを取得します:
-   ```bash
-   npm run dev
-   ```
-   実行後、ターミナルに認可用URLが表示されます。そのURLにブラウザでアクセスし、Googleアカウントでログインして認可を行ってください。
-   認可完了後に表示される認可コードをコピーし、ターミナルに貼り付けてEnterキーを押してください。
-   この操作により`token.json`ファイルが生成され、以降は自動的に認証されます。
-
-## ビルドと実行
-
-### ビルド
-
-```bash
-npm run build
-```
-
-### 実行
-
-通常のサーバーとして実行:
-
-```bash
-npm start
-```
-
-開発モードでの実行:
+### 4. 初回認証
 
 ```bash
 npm run dev
 ```
 
-## MCPサーバーとしての利用
+ターミナルに表示される認証URLにアクセスし、Googleアカウントで認証してください。認証後に取得したコードをターミナルに入力すると `token.json` が生成されます。
 
-このプロジェクトはModel Context Protocol（MCP）の仕様に準拠したサーバーです。MCPクライアント（Cursor、Claude.aiなど）から直接接続して利用できます。
+## 開発コマンド
 
-### MCPクライアントでの設定
+```bash
+# 開発サーバー（hot reload）
+npm run dev
 
-#### Cursorでの設定
+# プロダクションビルド
+npm run build
 
-Cursorで使用するには、`.cursor/mcp.json`ファイルに以下の設定を追加します：
+# ビルド後の実行
+npm start
+
+# MCP デバッグモード
+npm run mcp
+
+# コード品質チェック
+npm run lint
+```
+
+**ビルドプロセス**: TypeScript コンパイル → 実行権限設定 → 認証ファイル複製
+
+## MCP クライアント設定
+
+### Cursor での設定
+
+`.cursor/mcp.json` に追加：
 
 ```json
 {
   "mcpServers": {
     "google-docs": {
       "command": "node",
-      "args": ["/{プロジェクトへの絶対パス}/docs-mcp/dist/index.js"]
+      "args": ["/absolute/path/to/docs-mcp/dist/index.js"]
     }
   }
 }
 ```
 
-#### その他のMCPクライアント
+### Claude Desktop での設定
 
-その他のMCPクライアントでは、標準入出力（stdio）を使用して通信します。クライアントの設定に応じて適切なコマンドを指定してください。
+`claude_desktop_config.json` に追加：
 
-### 提供されるMCPツール
-
-#### read_google_document
-
-Google Docsドキュメントの内容を読み取ります。
-
-**パラメータ**:
-- `documentId` (string): 読み取るGoogle DocsドキュメントのID
-
-**使用例**:
-```javascript
-// MCPクライアントでの使用例
-const response = await client.callTool({
-  name: "read_google_document",
-  arguments: {
-    documentId: "your-document-id"
+```json
+{
+  "mcpServers": {
+    "google-docs": {
+      "command": "node",
+      "args": ["/absolute/path/to/docs-mcp/dist/index.js"]
+    }
   }
-});
+}
 ```
 
-#### create_google_document
+**注意**: ビルド後の `dist/index.js` を指定してください。
 
-新しいGoogle Docsドキュメントを作成します。
+## 提供ツール
 
-**パラメータ**:
-- `title` (string): 新しいドキュメントのタイトル
-- `content` (string, オプション): ドキュメントの初期内容
-
-**使用例**:
-```javascript
-const response = await client.callTool({
-  name: "create_google_document",
-  arguments: {
-    title: "ドキュメントタイトル",
-    content: "初期コンテンツ"
-  }
-});
-```
-
-#### update_google_document
-
-既存のGoogle Docsドキュメントを更新します。
+### read_google_document
+Google Docs ドキュメントの内容を読み取ります。
 
 **パラメータ**:
-- `documentId` (string): 更新するGoogle DocsドキュメントのID
+- `documentId` (string): 読み取るドキュメントのID
+
+### create_google_document
+新しい Google Docs ドキュメントを作成します。
+
+**パラメータ**:
+- `title` (string): ドキュメントタイトル
+- `content` (string, オプション): 初期内容
+
+### update_google_document
+既存の Google Docs ドキュメントを更新します。
+
+**パラメータ**:
+- `documentId` (string): 更新するドキュメントのID
 - `content` (string): 追加または更新するコンテンツ
-- `startPosition` (number, オプション): 更新を開始する位置
-- `endPosition` (number, オプション): 更新を終了する位置
+- `startPosition` (number, オプション): 更新開始位置
+- `endPosition` (number, オプション): 更新終了位置
 
-**使用例**:
-```javascript
-const response = await client.callTool({
-  name: "update_google_document",
-  arguments: {
-    documentId: "your-document-id",
-    content: "追加または更新するコンテンツ",
-    startPosition: 1,
-    endPosition: 10
-  }
-});
-```
-
-#### search_google_documents
-
-Google Docsドキュメントを検索します。
+### search_google_documents
+Google Docs ドキュメントを検索します。
 
 **パラメータ**:
 - `query` (string): 検索クエリ
-- `maxResults` (number, オプション): 取得する最大結果数（デフォルト: 10）
+- `maxResults` (number, オプション): 最大結果数（デフォルト: 10）
 
-**使用例**:
-```javascript
-const response = await client.callTool({
-  name: "search_google_documents",
-  arguments: {
-    query: "検索キーワード",
-    maxResults: 5
-  }
-});
-```
+## プログラムでの利用例
 
-## プログラムからの利用例
+MCP SDK を使用した TypeScript/JavaScript での利用：
 
-TypeScriptやJavaScriptプログラムからMCPクライアントを通じて利用する例：
-
-```javascript
+```typescript
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 async function main() {
-  // MCPクライアントの作成
   const client = new Client({
     name: "google-docs-client",
     version: "1.0.0"
   });
 
-  // Google Docs MCPサーバーへの接続
   const transport = new StdioClientTransport({
-    command: "npm",
-    args: ["run", "mcp"]
+    command: "node",
+    args: ["/absolute/path/to/docs-mcp/dist/index.js"]
   });
 
   await client.connect(transport);
 
-  // サーバー情報の取得
-  const info = await client.getServerInfo();
-  console.log("利用可能なツール:", info.tools);
-
-  // ドキュメントの検索
+  // ドキュメント検索
   const searchResult = await client.callTool({
     name: "search_google_documents",
     arguments: {
@@ -251,46 +189,88 @@ async function main() {
       maxResults: 5
     }
   });
-  console.log("検索結果:", searchResult);
 
-  // 接続を閉じる
+  // 新規ドキュメント作成
+  const createResult = await client.callTool({
+    name: "create_google_document",
+    arguments: {
+      title: "新しいドキュメント",
+      content: "初期コンテンツ"
+    }
+  });
+
   await client.disconnect();
 }
 
 main().catch(console.error);
 ```
 
+## アーキテクチャ詳細
+
+### コアコンポーネント
+
+- **ServiceContainer** (`src/core/container.ts`) - 依存性注入とサービスライフサイクル管理
+- **GoogleDocsMcpServer** (`src/mcp/server.ts`) - MCP サーバーの管理と初期化
+- **ToolRegistry** (`src/mcp/registry.ts`) - ツールの自動登録システム
+- **BaseMcpTool** (`src/mcp/tools/base.ts`) - 全ツールの共通基底クラス
+
+### サービス層
+
+- **AuthService** (`src/services/authService.ts`) - Google OAuth2 認証管理
+- **GoogleDocsService** (`src/services/googleDocsService.ts`) - Google Docs/Drive API操作
+
+### 設定システム
+
+- **統一設定管理** (`src/config/index.ts`) - 環境変数とデフォルト値の統合
+- **型安全な設定** - Zod による設定値の検証
+- **階層化ログシステム** (`src/utils/logger.ts`) - モジュール別ログ出力
+
 ## トラブルシューティング
 
-### Cursorで接続エラーが発生する場合
+### MCP クライアント接続エラー
 
-1. Cursorを完全に再起動してください。
-2. `.cursor/mcp.json`の設定が正しいことを確認してください。
-3. 手動でMCPサーバーを起動して動作確認：
-   ```bash
-   npm run dev
-   ```
-   このコマンドを実行したときに「Google Docs MCPサーバーが起動しました」というメッセージが表示され、プロセスが終了せずに動作し続けることを確認します。
-4. Cursorの設定から「MCPサーバー」セクションを確認し、「google-docs」サーバーが表示されていることを確認します。
+1. **ビルドの確認**: `npm run build` が成功しているか
+2. **パス設定**: 設定ファイルで `dist/index.js` への絶対パスを指定
+3. **権限設定**: `chmod 755 dist/index.js` で実行権限を確認
+4. **手動テスト**: `npm run mcp` でサーバーが起動するか確認
 
-### Google認証エラーが発生する場合
+### Google 認証エラー
 
-1. `credentials.json`ファイルが正しくプロジェクトルートに配置されていることを確認します。
-2. `token.json`ファイルが存在する場合は削除し、再認証を試みてください。
-3. Google Cloud Consoleで該当のプロジェクトに対してGoogle Drive APIとGoogle Docs APIが有効になっていることを確認します。
+1. **認証ファイル**: `credentials.json` がプロジェクトルートに存在するか
+2. **API有効化**: Google Cloud Console で必要なAPIが有効か
+3. **トークン再作成**: `token.json` を削除して再認証
+4. **スコープ確認**: Docs API と Drive API の権限が設定されているか
 
-## 拡張と構成
+### 開発時のデバッグ
 
-このMCPサーバーは拡張性を考慮して設計されており、以下のように新しい機能を追加できます：
+```bash
+# 詳細ログでデバッグ実行
+LOG_LEVEL=DEBUG npm run dev
 
-1. `src/googleDocsService.ts` - GoogleDocsServiceクラスに新しいメソッドを追加
-2. `src/index.ts` - 新しいツールを定義し、サーバーに登録
+# MCP通信のデバッグ
+npm run mcp
+```
+
+## 拡張ガイド
+
+### 新しいツールの追加
+
+1. `src/mcp/tools/` に新しいツールクラスを作成
+2. `BaseMcpTool` を継承して実装
+3. `ToolRegistry.registerDefaultTools()` に追加
+
+### サービスの拡張
+
+1. `src/core/interfaces.ts` でインターフェースを定義
+2. `src/services/` に実装クラスを作成
+3. `ServiceContainer` に追加
 
 ## 注意事項
 
-- 初回実行時に、Google認証のための承認画面が表示されます。認証後、トークンがファイルに保存され、以降の実行では自動的に使用されます。
-- APIの使用量に応じて、Google Cloud Platformの料金が発生する場合があります。
+- 初回実行時の Google 認証が必要
+- Google Cloud Platform の API 使用料金が発生する可能性
+- MCP クライアントでは絶対パスでの指定が必要
 
 ## ライセンス
 
-[MIT License](LICENSE) 
+MIT License 
