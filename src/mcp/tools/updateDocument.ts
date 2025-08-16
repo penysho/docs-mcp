@@ -25,11 +25,11 @@ export class UpdateDocumentTool extends BaseMcpTool {
   /**
    * ドキュメント更新の実装
    */
-  protected async executeInternal(args: { 
-    documentId: string; 
-    content: string; 
-    startPosition?: number; 
-    endPosition?: number 
+  protected async executeInternal(args: {
+    documentId: string;
+    content: string;
+    startPosition?: number;
+    endPosition?: number
   }): Promise<McpToolResponse> {
     // 引数検証
     this.validateArgs(args, ['documentId', 'content']);

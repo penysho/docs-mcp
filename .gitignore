@@ -82,4 +82,3 @@ dist/
 node_modules/
 *.log
 .cursor/
-.vscode/
