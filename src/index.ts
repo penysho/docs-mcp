@@ -1,53 +1,54 @@
-import { ServiceContainer } from './core/container.js';
-import { GoogleDocsMcpServer } from './mcp/server.js';
-import { getConfig } from './config/index.js';
-import { createLogger } from './utils/logger.js';
-import { formatError } from './utils/errors.js';
+import { getConfig } from "./config/index.js";
+import { ServiceContainer } from "./core/container.js";
+import { GoogleDocsMcpServer } from "./mcp/server.js";
+import { formatError } from "./utils/errors.js";
+import { createLogger } from "./utils/logger.js";
 
 /**
  * アプリケーションのメインエントリーポイント
  */
 async function main(): Promise<void> {
-  let logger;
+	let logger;
 
-  try {
-    // 設定の読み込み
-    const config = getConfig();
-    
-    // ロガーの初期化
-    logger = createLogger('Main', { 
-      level: config.log.level,
-      useStderr: config.log.useStderr
-    });
+	try {
+		// 設定の読み込み
+		const config = getConfig();
 
-    logger.info('Google Docs MCPサーバーのアプリケーションを開始します...');
-    logger.debug('設定情報:', config);
+		// ロガーの初期化
+		logger = createLogger("Main", {
+			level: config.log.level,
+			useStderr: config.log.useStderr,
+		});
 
-    // サービスコンテナの初期化
-    const serviceContainer = new ServiceContainer(config);
+		logger.info("Google Docs MCPサーバーのアプリケーションを開始します...");
+		logger.debug("設定情報:", config);
 
-    // MCPサーバーの初期化
-    const mcpServer = new GoogleDocsMcpServer(serviceContainer);
+		// サービスコンテナの初期化
+		const serviceContainer = new ServiceContainer(config);
 
-    // サーバーの初期化と開始
-    await mcpServer.initialize();
-    await mcpServer.start();
+		// MCPサーバーの初期化
+		const mcpServer = new GoogleDocsMcpServer(serviceContainer);
 
-    // サーバー情報をログ出力
-    const toolsInfo = mcpServer.getRegisteredToolsInfo();
-    logger.info(`サーバーが正常に起動しました。登録ツール数: ${toolsInfo.count}`);
-    logger.debug('登録ツール一覧:', toolsInfo.names);
+		// サーバーの初期化と開始
+		await mcpServer.initialize();
+		await mcpServer.start();
 
-  } catch (error) {
-    // ロガーが初期化されていない場合のフォールバック
-    const errorLogger = logger || createLogger('Main');
-    errorLogger.error(`アプリケーション起動エラー: ${formatError(error)}`);
-    process.exit(1);
-  }
+		// サーバー情報をログ出力
+		const toolsInfo = mcpServer.getRegisteredToolsInfo();
+		logger.info(
+			`サーバーが正常に起動しました。登録ツール数: ${toolsInfo.count}`,
+		);
+		logger.debug("登録ツール一覧:", toolsInfo.names);
+	} catch (error) {
+		// ロガーが初期化されていない場合のフォールバック
+		const errorLogger = logger || createLogger("Main");
+		errorLogger.error(`アプリケーション起動エラー: ${formatError(error)}`);
+		process.exit(1);
+	}
 }
 
 // アプリケーションの起動
 main().catch((error) => {
-  console.error(`致命的エラー: ${formatError(error)}`);
-  process.exit(1);
+	console.error(`致命的エラー: ${formatError(error)}`);
+	process.exit(1);
 });

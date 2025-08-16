@@ -273,4 +273,4 @@ npm run mcp
 
 ## ライセンス
 
-MIT License 
+MIT License

@@ -1,10 +1,15 @@
-import * as path from 'path';
-import * as fs from 'fs';
-import * as dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
-import { LogLevel } from '../utils/logger.js';
-import { IAppConfig, ILogConfig, IGoogleApiConfig, IServerConfig } from '../core/interfaces.js';
-import { AppError } from '../utils/errors.js';
+import * as dotenv from "dotenv";
+import * as fs from "fs";
+import * as path from "path";
+import { fileURLToPath } from "url";
+import type {
+	IAppConfig,
+	IGoogleApiConfig,
+	ILogConfig,
+	IServerConfig,
+} from "../core/interfaces.js";
+import { AppError } from "../utils/errors.js";
+import { LogLevel } from "../utils/logger.js";
 
 // ESモジュール環境での__dirnameの代替
 const __filename = fileURLToPath(import.meta.url);
@@ -16,260 +21,274 @@ const __dirname = path.dirname(__filename);
  * シングルトンパターンで実装し、設定の一貫性を保証
  */
 export class ConfigManager {
-  private static instance?: ConfigManager;
-  private config?: IAppConfig;
-  private initialized: boolean = false;
+	private static instance?: ConfigManager;
+	private config?: IAppConfig;
+	private initialized: boolean = false;
 
-  private constructor() {
-    // .envファイルの読み込み
-    dotenv.config();
-  }
+	private constructor() {
+		// .envファイルの読み込み
+		dotenv.config();
+	}
 
-  /**
-   * シングルトンインスタンスの取得
-   */
-  public static getInstance(): ConfigManager {
-    if (!ConfigManager.instance) {
-      ConfigManager.instance = new ConfigManager();
-    }
-    return ConfigManager.instance;
-  }
+	/**
+	 * シングルトンインスタンスの取得
+	 */
+	public static getInstance(): ConfigManager {
+		if (!ConfigManager.instance) {
+			ConfigManager.instance = new ConfigManager();
+		}
+		return ConfigManager.instance;
+	}
 
-  /**
-   * 設定を取得（遅延初期化）
-   */
-  getConfig(): IAppConfig {
-    if (!this.initialized) {
-      this.config = this.loadConfig();
-      this.validateConfig(this.config);
-      this.initialized = true;
-    }
-    return this.config!;
-  }
+	/**
+	 * 設定を取得（遅延初期化）
+	 */
+	getConfig(): IAppConfig {
+		if (!this.initialized) {
+			this.config = this.loadConfig();
+			this.validateConfig(this.config);
+			this.initialized = true;
+		}
+		return this.config!;
+	}
 
-  /**
-   * 設定のリロード（設定変更時）
-   */
-  reloadConfig(): IAppConfig {
-    this.initialized = false;
-    this.config = undefined;
-    dotenv.config(); // .envファイルを再読み込み
-    return this.getConfig();
-  }
+	/**
+	 * 設定のリロード（設定変更時）
+	 */
+	reloadConfig(): IAppConfig {
+		this.initialized = false;
+		this.config = undefined;
+		dotenv.config(); // .envファイルを再読み込み
+		return this.getConfig();
+	}
 
-  /**
-   * 設定が初期化済みかどうかを確認
-   */
-  isInitialized(): boolean {
-    return this.initialized;
-  }
+	/**
+	 * 設定が初期化済みかどうかを確認
+	 */
+	isInitialized(): boolean {
+		return this.initialized;
+	}
 
-  /**
-   * 設定の読み込み
-   */
-  private loadConfig(): IAppConfig {
-    return {
-      env: this.getEnv('NODE_ENV', 'development'),
-      log: this.loadLogConfig(),
-      googleApi: this.loadGoogleApiConfig(),
-      server: this.loadServerConfig()
-    };
-  }
+	/**
+	 * 設定の読み込み
+	 */
+	private loadConfig(): IAppConfig {
+		return {
+			env: this.getEnv("NODE_ENV", "development"),
+			log: this.loadLogConfig(),
+			googleApi: this.loadGoogleApiConfig(),
+			server: this.loadServerConfig(),
+		};
+	}
 
-  /**
-   * ログ設定の読み込み
-   */
-  private loadLogConfig(): ILogConfig {
-    return {
-      level: this.getLogLevel('LOG_LEVEL', LogLevel.INFO),
-      useStderr: this.getEnvAsBool('LOG_USE_STDERR', true)
-    };
-  }
+	/**
+	 * ログ設定の読み込み
+	 */
+	private loadLogConfig(): ILogConfig {
+		return {
+			level: this.getLogLevel("LOG_LEVEL", LogLevel.INFO),
+			useStderr: this.getEnvAsBool("LOG_USE_STDERR", true),
+		};
+	}
 
-  /**
-   * Google API設定の読み込み
-   */
-  private loadGoogleApiConfig(): IGoogleApiConfig {
-    return {
-      tokenPath: this.getEnv('TOKEN_PATH', path.resolve(__dirname, '../../token.json')),
-      credentialsPath: this.getEnv('CREDENTIALS_PATH', path.resolve(__dirname, '../../credentials.json')),
-      scopes: [
-        'https://www.googleapis.com/auth/documents',
-        'https://www.googleapis.com/auth/drive'
-      ]
-    };
-  }
+	/**
+	 * Google API設定の読み込み
+	 */
+	private loadGoogleApiConfig(): IGoogleApiConfig {
+		return {
+			tokenPath: this.getEnv(
+				"TOKEN_PATH",
+				path.resolve(__dirname, "../../token.json"),
+			),
+			credentialsPath: this.getEnv(
+				"CREDENTIALS_PATH",
+				path.resolve(__dirname, "../../credentials.json"),
+			),
+			scopes: [
+				"https://www.googleapis.com/auth/documents",
+				"https://www.googleapis.com/auth/drive",
+			],
+		};
+	}
 
-  /**
-   * サーバー設定の読み込み
-   */
-  private loadServerConfig(): IServerConfig {
-    return {
-      name: this.getEnv('SERVER_NAME', 'google-docs-mcp-server'),
-      version: this.getEnv('SERVER_VERSION', '1.0.0')
-    };
-  }
+	/**
+	 * サーバー設定の読み込み
+	 */
+	private loadServerConfig(): IServerConfig {
+		return {
+			name: this.getEnv("SERVER_NAME", "google-docs-mcp-server"),
+			version: this.getEnv("SERVER_VERSION", "1.0.0"),
+		};
+	}
 
-  /**
-   * 設定の検証
-   */
-  private validateConfig(config: IAppConfig): void {
-    // Google API認証情報ファイルの存在確認
-    if (!fs.existsSync(config.googleApi.credentialsPath)) {
-      throw new AppError(
-        `credentials.jsonファイルが見つかりません: ${config.googleApi.credentialsPath}`,
-        'CONFIG_VALIDATION_ERROR',
-        500
-      );
-    }
+	/**
+	 * 設定の検証
+	 */
+	private validateConfig(config: IAppConfig): void {
+		// Google API認証情報ファイルの存在確認
+		if (!fs.existsSync(config.googleApi.credentialsPath)) {
+			throw new AppError(
+				`credentials.jsonファイルが見つかりません: ${config.googleApi.credentialsPath}`,
+				"CONFIG_VALIDATION_ERROR",
+				500,
+			);
+		}
 
-    // 必須設定値の確認
-    if (!config.server.name || !config.server.version) {
-      throw new AppError(
-        'サーバー名またはバージョンが設定されていません',
-        'CONFIG_VALIDATION_ERROR',
-        500
-      );
-    }
+		// 必須設定値の確認
+		if (!config.server.name || !config.server.version) {
+			throw new AppError(
+				"サーバー名またはバージョンが設定されていません",
+				"CONFIG_VALIDATION_ERROR",
+				500,
+			);
+		}
 
-    // ログレベルの妥当性確認
-    if (config.log.level < LogLevel.ERROR || config.log.level > LogLevel.TRACE) {
-      throw new AppError(
-        `無効なログレベルです: ${config.log.level}`,
-        'CONFIG_VALIDATION_ERROR',
-        500
-      );
-    }
-  }
+		// ログレベルの妥当性確認
+		if (
+			config.log.level < LogLevel.ERROR ||
+			config.log.level > LogLevel.TRACE
+		) {
+			throw new AppError(
+				`無効なログレベルです: ${config.log.level}`,
+				"CONFIG_VALIDATION_ERROR",
+				500,
+			);
+		}
+	}
 
-  /**
-   * 環境変数から文字列を取得
-   */
-  private getEnv(key: string, defaultValue: string): string {
-    return process.env[key] || defaultValue;
-  }
+	/**
+	 * 環境変数から文字列を取得
+	 */
+	private getEnv(key: string, defaultValue: string): string {
+		return process.env[key] || defaultValue;
+	}
 
-  /**
-   * 環境変数から数値を取得
-   */
-  private getEnvAsInt(key: string, defaultValue: number): number {
-    const val = process.env[key];
-    if (!val) return defaultValue;
-    
-    const parsed = parseInt(val, 10);
-    if (isNaN(parsed)) {
-      throw new AppError(
-        `環境変数 ${key} は数値である必要があります: ${val}`,
-        'CONFIG_VALIDATION_ERROR',
-        500
-      );
-    }
-    
-    return parsed;
-  }
+	/**
+	 * 環境変数から数値を取得
+	 */
+	private getEnvAsInt(key: string, defaultValue: number): number {
+		const val = process.env[key];
+		if (!val) return defaultValue;
 
-  /**
-   * 環境変数からブール値を取得
-   */
-  private getEnvAsBool(key: string, defaultValue: boolean): boolean {
-    const val = process.env[key];
-    if (!val) return defaultValue;
-    
-    switch (val.toLowerCase()) {
-      case 'true':
-      case '1':
-      case 'yes':
-        return true;
-      case 'false':
-      case '0':
-      case 'no':
-        return false;
-      default:
-        throw new AppError(
-          `環境変数 ${key} はブール値である必要があります: ${val}`,
-          'CONFIG_VALIDATION_ERROR',
-          500
-        );
-    }
-  }
+		const parsed = parseInt(val, 10);
+		if (isNaN(parsed)) {
+			throw new AppError(
+				`環境変数 ${key} は数値である必要があります: ${val}`,
+				"CONFIG_VALIDATION_ERROR",
+				500,
+			);
+		}
 
-  /**
-   * 環境変数からログレベルを取得
-   */
-  private getLogLevel(key: string, defaultValue: LogLevel): LogLevel {
-    const val = process.env[key]?.toUpperCase();
-    if (!val) return defaultValue;
-    
-    switch (val) {
-      case 'ERROR': return LogLevel.ERROR;
-      case 'WARN': return LogLevel.WARN;
-      case 'INFO': return LogLevel.INFO;
-      case 'DEBUG': return LogLevel.DEBUG;
-      case 'TRACE': return LogLevel.TRACE;
-      default:
-        throw new AppError(
-          `無効なログレベルです: ${val}`,
-          'CONFIG_VALIDATION_ERROR',
-          500
-        );
-    }
-  }
+		return parsed;
+	}
 
-  /**
-   * 設定情報の表示（センシティブ情報を除く）
-   */
-  getSafeConfigInfo(): object {
-    const config = this.getConfig();
-    return {
-      env: config.env,
-      log: {
-        level: LogLevel[config.log.level],
-        useStderr: config.log.useStderr
-      },
-      server: {
-        name: config.server.name,
-        version: config.server.version
-      },
-      googleApi: {
-        credentialsPathExists: fs.existsSync(config.googleApi.credentialsPath),
-        tokenPathExists: fs.existsSync(config.googleApi.tokenPath),
-        scopes: config.googleApi.scopes
-      }
-    };
-  }
+	/**
+	 * 環境変数からブール値を取得
+	 */
+	private getEnvAsBool(key: string, defaultValue: boolean): boolean {
+		const val = process.env[key];
+		if (!val) return defaultValue;
+
+		switch (val.toLowerCase()) {
+			case "true":
+			case "1":
+			case "yes":
+				return true;
+			case "false":
+			case "0":
+			case "no":
+				return false;
+			default:
+				throw new AppError(
+					`環境変数 ${key} はブール値である必要があります: ${val}`,
+					"CONFIG_VALIDATION_ERROR",
+					500,
+				);
+		}
+	}
+
+	/**
+	 * 環境変数からログレベルを取得
+	 */
+	private getLogLevel(key: string, defaultValue: LogLevel): LogLevel {
+		const val = process.env[key]?.toUpperCase();
+		if (!val) return defaultValue;
+
+		switch (val) {
+			case "ERROR":
+				return LogLevel.ERROR;
+			case "WARN":
+				return LogLevel.WARN;
+			case "INFO":
+				return LogLevel.INFO;
+			case "DEBUG":
+				return LogLevel.DEBUG;
+			case "TRACE":
+				return LogLevel.TRACE;
+			default:
+				throw new AppError(
+					`無効なログレベルです: ${val}`,
+					"CONFIG_VALIDATION_ERROR",
+					500,
+				);
+		}
+	}
+
+	/**
+	 * 設定情報の表示（センシティブ情報を除く）
+	 */
+	getSafeConfigInfo(): object {
+		const config = this.getConfig();
+		return {
+			env: config.env,
+			log: {
+				level: LogLevel[config.log.level],
+				useStderr: config.log.useStderr,
+			},
+			server: {
+				name: config.server.name,
+				version: config.server.version,
+			},
+			googleApi: {
+				credentialsPathExists: fs.existsSync(config.googleApi.credentialsPath),
+				tokenPathExists: fs.existsSync(config.googleApi.tokenPath),
+				scopes: config.googleApi.scopes,
+			},
+		};
+	}
 }
 
 /**
  * 設定を取得する関数（メイン関数）
  */
 export function getConfig(): IAppConfig {
-  return ConfigManager.getInstance().getConfig();
+	return ConfigManager.getInstance().getConfig();
 }
 
 /**
  * 設定検証関数
  */
 export function validateConfig(): void {
-  ConfigManager.getInstance().getConfig(); // 内部で検証が実行される
+	ConfigManager.getInstance().getConfig(); // 内部で検証が実行される
 }
 
 /**
  * 設定のリロード関数
  */
 export function reloadConfig(): IAppConfig {
-  return ConfigManager.getInstance().reloadConfig();
+	return ConfigManager.getInstance().reloadConfig();
 }
 
 /**
  * 設定情報の安全な表示関数
  */
 export function getSafeConfigInfo(): object {
-  return ConfigManager.getInstance().getSafeConfigInfo();
+	return ConfigManager.getInstance().getSafeConfigInfo();
 }
 
 /**
  * デフォルトエクスポート（ConfigManagerのシングルトンインスタンス取得）
  */
 export default function getConfigManager(): ConfigManager {
-  return ConfigManager.getInstance();
+	return ConfigManager.getInstance();
 }
