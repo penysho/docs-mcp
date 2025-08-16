@@ -13,24 +13,55 @@ const __dirname = path.dirname(__filename);
 /**
  * 統合設定管理クラス
  * 環境変数、設定ファイル、デフォルト値を統一的に管理
+ * シングルトンパターンで実装し、設定の一貫性を保証
  */
 export class ConfigManager {
+  private static instance?: ConfigManager;
   private config?: IAppConfig;
+  private initialized: boolean = false;
 
-  constructor() {
+  private constructor() {
     // .envファイルの読み込み
     dotenv.config();
+  }
+
+  /**
+   * シングルトンインスタンスの取得
+   */
+  public static getInstance(): ConfigManager {
+    if (!ConfigManager.instance) {
+      ConfigManager.instance = new ConfigManager();
+    }
+    return ConfigManager.instance;
   }
 
   /**
    * 設定を取得（遅延初期化）
    */
   getConfig(): IAppConfig {
-    if (!this.config) {
+    if (!this.initialized) {
       this.config = this.loadConfig();
       this.validateConfig(this.config);
+      this.initialized = true;
     }
-    return this.config;
+    return this.config!;
+  }
+
+  /**
+   * 設定のリロード（設定変更時）
+   */
+  reloadConfig(): IAppConfig {
+    this.initialized = false;
+    this.config = undefined;
+    dotenv.config(); // .envファイルを再読み込み
+    return this.getConfig();
+  }
+
+  /**
+   * 設定が初期化済みかどうかを確認
+   */
+  isInitialized(): boolean {
+    return this.initialized;
   }
 
   /**
@@ -208,21 +239,37 @@ export class ConfigManager {
   }
 }
 
-// シングルトンインスタンス
-const configManager = new ConfigManager();
-
 /**
- * 設定を取得する関数（後方互換性のため）
+ * 設定を取得する関数（メイン関数）
  */
 export function getConfig(): IAppConfig {
-  return configManager.getConfig();
+  return ConfigManager.getInstance().getConfig();
 }
 
 /**
- * 設定検証関数（後方互換性のため）
+ * 設定検証関数
  */
 export function validateConfig(): void {
-  configManager.getConfig(); // 内部で検証が実行される
+  ConfigManager.getInstance().getConfig(); // 内部で検証が実行される
 }
 
-export default configManager;
+/**
+ * 設定のリロード関数
+ */
+export function reloadConfig(): IAppConfig {
+  return ConfigManager.getInstance().reloadConfig();
+}
+
+/**
+ * 設定情報の安全な表示関数
+ */
+export function getSafeConfigInfo(): object {
+  return ConfigManager.getInstance().getSafeConfigInfo();
+}
+
+/**
+ * デフォルトエクスポート（ConfigManagerのシングルトンインスタンス取得）
+ */
+export default function getConfigManager(): ConfigManager {
+  return ConfigManager.getInstance();
+}
