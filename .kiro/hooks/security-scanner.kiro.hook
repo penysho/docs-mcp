@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Security Scanner",
+  "description": "APIキーや秘密情報が含まれていないかチェック",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/*"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "ファイルを精査して、以下のような機密情報を検出：\n\n1. ハードコードされた認証情報\n   - APIキー（AWS、Google、OpenAIなど）\n   - パスワード\n   - 秘密鍵\n   - データベース接続文字列\n\n2. 見つかった場合の対処\n   - 該当行をハイライト\n   - 環境変数への移行方法を提案\n   - .envファイルへの追加例を表示\n   - .gitignoreに.envが含まれているか確認\n\n3. プライベートなURL\n   - 内部APIのエンドポイント\n   - 開発環境のURL\n   - これらも環境変数化を提案\n\n4. コミット前の最終チェック\n   - git diffで機密情報が含まれていないか確認\n   - 問題があればコミットを中断するよう警告"
+  }
+}

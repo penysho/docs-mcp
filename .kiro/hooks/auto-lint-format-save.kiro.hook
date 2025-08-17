@@ -1,0 +1,19 @@
+{
+  "enabled": true,
+  "name": "Auto Lint and Format on Save",
+  "description": "Automatically runs static analysis and code formatting when JavaScript/TypeScript files are saved, using biome for linting and formatting, plus console.log detection",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/*.{js",
+      "ts",
+      "jsx",
+      "tsx}"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A JavaScript/TypeScript file has been saved. Please perform the following tasks in order:\n\n1. Run biome static analysis and code formatting:\n   - Execute automatic fixes for any issues that can be resolved\n   - List any problems that cannot be automatically fixed\n\n2. Detect console.log statements:\n   - If console.log statements are found in production code, provide a warning\n   - For debug purposes, suggest adding /* debug */ comments\n\nPlease provide a summary of all actions taken and any issues found."
+  }
+}
